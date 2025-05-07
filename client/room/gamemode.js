@@ -1,21 +1,24 @@
-import { Timers, Properties, Teams, Damage, GameMode, Game, BreackGraph, Map, TeamsBalancer, Ui, LeaderBoard, Spawns, Inventory } from 
-
+import { Timers, Properties, Teams, Damage, GameMode, Game, BreackGraph, Map, TeamsBalancer, Ui, LeaderBoard, Spawns, Inventory } from 'pixel_combats/room';
+import { DisplayValueHeader, Color } from 'pixel_combats/basic';
+import * as teams from './default_teams.js';
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-var MaxScores = 6;
-var WaitingModeSeconts = 10;
-var BuildModeSeconds = 30;
-var GameModeSeconds = 120;
-var EndGameSeconds = 5;
-var EndOfMatchTime = 10;
+const WaitingModeSeconts = 10;
+const BuildModeSeconds = 30;
+const GameModeSeconds = 120;
+const EndGameSeconds = 5;
+const EndOfMatchTime = 10;
+
+const max_scores = 6;
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
-var WaitingStateValue = "Waiting";
-var BuildModeStateValue = "BuildMode";
-var GameStateValue = "Game";
-var EndOfGameStateValue = "EndOfGame";
-var EndOfMatchStateValue = "EndOfMatch";
-var scoresProp = "Scores";
+const WaitingStateValue = "Waiting";
+const BuildModeStateValue = "BuildMode";
+const GameStateValue = "Game";
+const EndOfGameStateValue = "EndOfGame";
+const EndOfMatchStateValue = "EndOfMatch";
+
+const scores_prop_name = "Scores";
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 var mainTimer = Timers.GetContext().Get("Main");
@@ -39,12 +42,10 @@ Properties.GetContext().GameModeName.Value = "GameModes/Team Dead Match";
 TeamsBalancer.IsAutoBalance = true; // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
 Ui.GetContext().MainTimerId.Value = mainTimer.Id;
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-Teams.Add("Blue", "Teams/Blue", { b: 1 });
-Teams.Add("Red", "Teams/Red", { r: 1 });
-Teams.Get("Blue").Spawns.SpawnPointsGroups.Add(1);
-Teams.Get("Red").Spawns.SpawnPointsGroups.Add(2);
-Teams.Get("Red").Build.BlocksSet.Value = BuildBlocksSet.Red;
-Teams.Get("Blue").Build.BlocksSet.Value = BuildBlocksSet.Blue;
+const blueTeam = teams.create_team_blue();
+const redTeam = teams.create_team_red();
+redTeam.Build.BlocksSet.Value = BuildBlocksSet.Red;
+blueTeam.Build.BlocksSet.Value = BuildBlocksSet.Blue;
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 LeaderBoard.PlayerLeaderBoardValues = [
@@ -59,36 +60,36 @@ LeaderBoard.PlayerLeaderBoardValues = [
 		ShortDisplayName: "Statistics/\DeathsShort"
 	},
 	{
-		Value: "Scores",
+		Value: scores_prop_name,
 		DisplayName: "Statistics/Scores",
 		ShortDisplayName: "Statistics/ScoresShort"
 	}
 ];
 LeaderBoard.TeamLeaderBoardValue = {
-	Value: scoresProp,
+	Value: scores_prop_name,
 	DisplayName: "Statistics\Scores",
 	ShortDisplayName: "Statistics\ScoresShort"
 };
 // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 LeaderBoard.TeamWeightGetter.Set(function(team) {
-	var prop = team.Properties.Get(scoresProp);
-	if (prop.Value == null) return 0;
-	return prop.Value;
+ const prop = team.Properties.Get(scores_prop_name);
+if (prop.Value == null) return 0;
+   return prop.Value;
 });
 // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 LeaderBoard.PlayersWeightGetter.Set(function(player) {
-	var prop = player.Properties.Get("Scores");
-	if (prop.Value == null) return 0;
-	return prop.Value;
+ const prop = player.Properties.Get(scores_prop_name);
+if (prop.Value == null) return 0;
+    return prop.Value;
 });
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-Ui.GetContext().TeamProp1.Value = { Team: "Blue", Prop: scoresProp };
-Ui.GetContext().TeamProp2.Value = { Team: "Red", Prop: scoresProp };
+Ui.GetContext().TeamProp1.Value = { Team: "Blue", Prop: scores_prop_name };
+Ui.GetContext().TeamProp2.Value = { Team: "Red", Prop: scores_prop_name };
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
-for (e = Teams.GetEnumerator(); e.MoveNext();) {
-	e.Current.Properties.Get(scoresProp).Value= 0;
+for (const team of Teams.All) {
+      team.Properties.Get(scores_prop_name).Value = 0;
 }
 
 // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
@@ -117,10 +118,10 @@ function GetWinTeam(){
 	winTeam = null;
 	wins = 0;
 	noAlife = true;
-	for (e = Teams.GetEnumerator(); e.MoveNext();) {
-		if (e.Current.GetAlivePlayersCount() > 0) {
-			++wins;
-			winTeam = e.Current;
+	for (const team of Teams.All) {
+	if (team.GetAlivePlayersCount() > 0) {
+		++wins;
+	winTeam = team;
 		}
 	}
 	if (wins === 1) return winTeam;
@@ -136,14 +137,14 @@ function TrySwitchGameState() // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï
 	wins = 0;
 	alifeCount = 0;
 	hasEmptyTeam = false;
-	for (e = Teams.GetEnumerator(); e.MoveNext();) {
-		var alife = e.Current.GetAlivePlayersCount();
+	for (const team of Teams.All) {
+		var alife = team.GetAlivePlayersCount();
 		alifeCount += alife;
 		if (alife > 0) {
 			++wins;
-			winTeam = e.Current;
+			winTeam = team;
 		}
-		if (e.Current.Count == 0) hasEmptyTeam = true;
+		if (team.Count == 0) hasEmptyTeam = true;
 	}
 
 	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
@@ -262,7 +263,7 @@ function StartEndOfGame(team) { // team=null ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
 	if (team !== null) {
 		log.debug(1);
 		Ui.GetContext().Hint.Value = team + " wins!";
-		 var prop = team.Properties.Get(scoresProp);
+		 var prop = team.Properties.Get(scores_prop_name);
 		 if (prop.Value == null) prop.Value = 1;
 		 else prop.Value = prop.Value + 1;
 	}
@@ -273,8 +274,8 @@ function StartEndOfGame(team) { // team=null ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
 function EndEndOfGame(){// ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
 	if (winTeamIdProp.Value !== null) {
 		var team = Teams.Get(winTeamIdProp.Value);
-		var prop = team.Properties.Get(scoresProp);
-		if (prop.Value >= MaxScores) SetEndOfMatchMode();
+		var prop = team.Properties.Get(scores_prop_name);
+		if (prop.Value >= max_scores) SetEndOfMatchMode();
 		else SetGameMode();
 	}
 	else SetGameMode();
@@ -295,8 +296,7 @@ function RestartGame() {
 }
 
 function SpawnTeams() {
-	var e = Teams.GetEnumerator();
-	while (e.moveNext()) {
-		Spawns.GetContext(e.Current).Spawn();
+	for (const team of Teams.All) {
+	Spawns.GetContext(team).Spawn();
 	}
   }
