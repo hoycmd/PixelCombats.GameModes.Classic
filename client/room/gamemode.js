@@ -1,111 +1,90 @@
-import { Timers, Properties, Teams, Damage, GameMode, Game, BreackGraph, Map, TeamsBalancer, Ui, LeaderBoard, Spawns, Inventory } from 'pixel_combats/room';
-import { DisplayValueHeader, Color } from 'pixel_combats/basic';
+import { Players, Inventory, Teams, Game, Map, Build, Properties, LeaderBoard, Spawns, Timers, TeamsBalancer } from 'pixel_combats/room';
+import { DisplayValueHeader } from 'pixel_combats/basic';
 import * as teams from './default_teams.js';
 
-// ���������
-const WaitingModeSeconts = 10;
+// настройки
+const MaxScores = 6;
+const WaitingModeSeconds = 10;
 const BuildModeSeconds = 30;
 const GameModeSeconds = 120;
 const EndGameSeconds = 5;
 const EndOfMatchTime = 10;
 
-const max_scores = 6;
-
-// ��������� ����
+// имена используемых обьектов 
 const WaitingStateValue = "Waiting";
 const BuildModeStateValue = "BuildMode";
 const GameStateValue = "Game";
 const EndOfGameStateValue = "EndOfGame";
 const EndOfMatchStateValue = "EndOfMatch";
+const scoresProp = "Scores";
 
-const scores_prop_name = "Scores";
+// получаем обьекты, с которыми работает режим
+const mainTimer = Timers.GetContext().Get("Main");
+const stateProp = Properties.GetContext().Get("State");
+const winTeamIdProp = Properties.GetContext().Get("WinTeam");
 
-// ���������� ����������
-var mainTimer = Timers.GetContext().Get("Main");
-var stateProp = Properties.GetContext().Get("State");
-var winTeamIdProp = Properties.GetContext().Get("WinTeam");
-
-// ��������� ��������� �������� �������
+// применяем параметры конструктора режима
 Damage.GetContext().FriendlyFire.Value = GameMode.Parameters.GetBool("FriendlyFire");
 Map.Rotation = GameMode.Parameters.GetBool("MapRotation");
 BreackGraph.OnlyPlayerBlocksDmg = GameMode.Parameters.GetBool("PartialDesruction");
 BreackGraph.WeakBlocks = GameMode.Parameters.GetBool("LoosenBlocks");
 
-// ���� ������ ������ ������
+// бустим блок игрока
 BreackGraph.PlayerBlockBoost = true;
 
-// ��������� ���� ������� ��� �������
+// выключаем контекст урона по гранате
 Damage.GetContext().GranadeTouchExplosion.Value = false;
 
-// ��������� ����
+// имя игрового режима (устарело)
 Properties.GetContext().GameModeName.Value = "GameModes/Team Dead Match";
-TeamsBalancer.IsAutoBalance = true; // ��� ���������� �� ������ �����
+TeamsBalancer.IsAutoBalance = true; // настраиваем баланс команд
 Ui.GetContext().MainTimerId.Value = mainTimer.Id;
-// ������� �������
-const blueTeam = teams.create_team_blue();
-const redTeam = teams.create_team_red();
-redTeam.Build.BlocksSet.Value = BuildBlocksSet.Red;
-blueTeam.Build.BlocksSet.Value = BuildBlocksSet.Blue;
+// создаем стандартные команды
+const blueTeam = teams.create_blue_team();
+const redTeam = teams.create_red_team();
 
-// ������ ��� �������� � �����������
+// настраиваем параметры, которые нужно выводить в лидерборде
 LeaderBoard.PlayerLeaderBoardValues = [
-	{
-		Value: "Kills",
-		DisplayName: "Statistics/Kills",
-		ShortDisplayName: "Statistics/KillsShort"
-	},
-	{
-		Value: "Deaths",
-		DisplayName: "Statistics/Deaths",
-		ShortDisplayName: "Statistics/\DeathsShort"
-	},
-	{
-		Value: scores_prop_name,
-		DisplayName: "Statistics/Scores",
-		ShortDisplayName: "Statistics/ScoresShort"
-	}
+	new DisplayValueHeader("Kills", "Statistics/Kills", "Statistics/KillsShort"),
+	new DisplayValueHeader("Deaths", "Statistics/Deaths", "Statistics/DeathsShort"),
+	new DisplayValueHeader("Scores", "Statistics/Scores", "Statistics/ScoresShort")
 ];
-LeaderBoard.TeamLeaderBoardValue = {
-	Value: scores_prop_name,
-	DisplayName: "Statistics\Scores",
-	ShortDisplayName: "Statistics\ScoresShort"
-};
-// ��� ������� � ����������
+LeaderBoard.TeamLeaderBoardValue = new DisplayValueHeader(scoresProp, "Statistics\\Scores", "Statistics\\Scores");
+// задаем сортировку команд, для списка лидирующих по командному свойству
 LeaderBoard.TeamWeightGetter.Set(function(team) {
- const prop = team.Properties.Get(scores_prop_name);
+const prop = team.Properties.Get(scoresProp);
 if (prop.Value == null) return 0;
-   return prop.Value;
+	return prop.Value;
 });
-// ��� ������ � ����������
+// задаем сортировку игроков для списка лидирующих
 LeaderBoard.PlayersWeightGetter.Set(function(player) {
- const prop = player.Properties.Get(scores_prop_name);
+const prop = player.Properties.Get("Scores");
 if (prop.Value == null) return 0;
-    return prop.Value;
+	return prop.Value;
 });
 
-// ������ ��� �������� ������
-Ui.GetContext().TeamProp1.Value = { Team: "Blue", Prop: scores_prop_name };
-Ui.GetContext().TeamProp2.Value = { Team: "Red", Prop: scores_prop_name };
+// отображаем значения вверху экрана
+Ui.GetContext().TeamProp1.Value = { Team: "Blue", Prop: scoresProp };
+Ui.GetContext().TeamProp2.Value = { Team: "Red", Prop: scoresProp };
 
-// ������� 0 ������
-for (const team of Teams.All) {
-      team.Properties.Get(scores_prop_name).Value = 0;
-}
+// отображаем изначально нули в очках команд
+redTeam.Properties.Get(scoresProp).Value = 0;
+blueTeam.Properties.Get(scoresProp).Value = 0;
 
-// ��������� ���� � ������� �� �������
+// при запросе смены команды игрока - добавляем его в запрашиваемую команду
 Teams.OnRequestJoinTeam.Add(function(player,team){team.Add(player);});
-// ����� �� ����� � �������
+// при запросе спавна игрока - спавним его
 Teams.OnPlayerChangeTeam.Add(function(player) {
 	//if (stateProp.value === GameStateValue) 
 	//	return;
 	player.Spawns.Spawn();
 });
 
-// ������� �������
+// обработчик смертей
 Damage.OnDeath.Add(function(player) {
 	++player.Properties.Deaths.Value;
 });
-// ������� �������
+// обработчик убийств
 Damage.OnKill.Add(function(player, killed) {
 	if (killed.Team != null && killed.Team != player.Team) {
 		++player.Properties.Kills.Value;
@@ -113,15 +92,15 @@ Damage.OnKill.Add(function(player, killed) {
 	}
 });
 
-// ��������� ������� �������
+//  ������ ������
 function GetWinTeam(){
 	winTeam = null;
 	wins = 0;
 	noAlife = true;
-	for (const team of Teams.All) {
-	if (team.GetAlivePlayersCount() > 0) {
-		++wins;
-	winTeam = team;
+	for (const Team of Teams) {
+		if (Team.GetAlivePlayersCount() > 0) {
+			++wins;
+			winTeam = Team;
 		}
 	}
 	if (wins === 1) return winTeam;
@@ -137,14 +116,14 @@ function TrySwitchGameState() // ������� ���������
 	wins = 0;
 	alifeCount = 0;
 	hasEmptyTeam = false;
-	for (const team of Teams.All) {
-		var alife = team.GetAlivePlayersCount();
+	for (const Team of Teams) {
+		var alife = Team.GetAlivePlayersCount();
 		alifeCount += alife;
 		if (alife > 0) {
 			++wins;
-			winTeam = team;
+			winTeam = Team;
 		}
-		if (team.Count == 0) hasEmptyTeam = true;
+		if (Team.Count == 0) hasEmptyTeam = true;
 	}
 
 	// ���� ���������� �������
@@ -263,7 +242,7 @@ function StartEndOfGame(team) { // team=null �� �����
 	if (team !== null) {
 		log.debug(1);
 		Ui.GetContext().Hint.Value = team + " wins!";
-		 var prop = team.Properties.Get(scores_prop_name);
+		 var prop = team.Properties.Get(scoresProp);
 		 if (prop.Value == null) prop.Value = 1;
 		 else prop.Value = prop.Value + 1;
 	}
@@ -274,8 +253,8 @@ function StartEndOfGame(team) { // team=null �� �����
 function EndEndOfGame(){// ����� ����� �����
 	if (winTeamIdProp.Value !== null) {
 		var team = Teams.Get(winTeamIdProp.Value);
-		var prop = team.Properties.Get(scores_prop_name);
-		if (prop.Value >= max_scores) SetEndOfMatchMode();
+		var prop = team.Properties.Get(scoresProp);
+		if (prop.Value >= MaxScores) SetEndOfMatchMode();
 		else SetGameMode();
 	}
 	else SetGameMode();
@@ -296,7 +275,7 @@ function RestartGame() {
 }
 
 function SpawnTeams() {
-	for (const team of Teams.All) {
+	for (const team of Teams) {
 	Spawns.GetContext(team).Spawn();
 	}
-  }
+}
